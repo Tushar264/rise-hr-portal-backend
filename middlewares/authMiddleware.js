@@ -1,58 +1,101 @@
 const jwt = require('jsonwebtoken')
 
-const User = require('../models/User')
+const base = require(
+  '../config/airtable'
+)
 
-const protect = async (
-  req,
-  res,
-  next
-) => {
+const protect =
+  async (req, res, next) => {
 
-  try {
+    try {
 
-    let token
+      let token
 
-    if (
-      req.headers.authorization &&
-      req.headers.authorization.startsWith('Bearer')
-    ) {
+      if (
 
-      token =
-        req.headers.authorization.split(' ')[1]
+        req.headers.authorization &&
 
-      const decoded =
-        jwt.verify(
-          token,
-          process.env.JWT_SECRET
+        req.headers.authorization.startsWith(
+          'Bearer'
         )
 
-      const user =
-        await User.findById(decoded.id)
+      ) {
 
-      if (!user) {
+        token =
+          req.headers.authorization.split(
+            ' '
+          )[1]
 
-        return res.status(404).json({
-          message: 'User not found',
+
+        const decoded =
+          jwt.verify(
+
+            token,
+
+            process.env.JWT_SECRET
+          )
+
+
+        // FETCH USER FROM AIRTABLE
+        const records =
+          await base('Team')
+
+          .select({
+
+            filterByFormula:
+              `{Email}='${decoded.email}'`
+
+          })
+
+          .firstPage()
+
+
+        if (!records.length) {
+
+          return res.status(401).json({
+
+            message:
+              'Unauthorized',
+          })
+        }
+
+
+        const employee =
+          records[0].fields
+
+
+        req.user = {
+
+          email:
+            employee.Email,
+
+          name:
+            employee.Name,
+
+          role:
+            employee.Role,
+        }
+
+        next()
+
+      } else {
+
+        res.status(401).json({
+
+          message:
+            'No token found',
         })
       }
 
-      req.user = user
+    } catch (error) {
 
-      next()
+      res.status(401).json({
 
-    } else {
-
-      return res.status(401).json({
-        message: 'No token found',
+        message:
+          'Unauthorized',
       })
     }
-
-  } catch (error) {
-
-    return res.status(401).json({
-      message: 'Unauthorized',
-    })
-  }
 }
 
-module.exports = protect
+module.exports =
+  protect

@@ -34,6 +34,7 @@ app.use('/api/announcement', require('./routes/announcementRoutes'))
 app.use('/api/admin', require('./routes/adminRoutes'))
 app.use('/api/audit', require('./routes/auditRoutes'))
 app.use('/api/dashboard', require('./routes/dashboardRoutes'))
+app.use('/api/auth',require('./routes/googleAuthRoutes'))
 
 const PORT =
   process.env.PORT || 5000
