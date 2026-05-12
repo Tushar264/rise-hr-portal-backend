@@ -8,6 +8,10 @@ const createAuditLog = require(
   '../utils/createAuditLog'
 )
 
+const getLeaveBalance = require(
+  '../utils/getLeaveBalance'
+)
+
 
 
 // APPLY LEAVE
@@ -51,6 +55,7 @@ const applyLeave = async (req, res) => {
     }
 
 
+
     // CALCULATE LEAVE DAYS
     const deductedDays =
       await calculateLeaveDays(
@@ -60,34 +65,81 @@ const applyLeave = async (req, res) => {
       )
 
 
+
+    // CHECK LEAVE BALANCE
+    const balance =
+      await getLeaveBalance(
+        req.user._id
+      )
+
+
+    // WFH BALANCE CHECK
+    if (
+      leaveType === 'WFH'
+    ) {
+
+      if (
+        balance.WFH.remaining <
+        deductedDays
+      ) {
+
+        return res.status(400).json({
+          message:
+            'Insufficient WFH balance',
+        })
+      }
+    }
+
+
+    // PTO BALANCE CHECK
+    else {
+
+      if (
+        balance.PTO.remaining <
+        deductedDays
+      ) {
+
+        return res.status(400).json({
+          message:
+            'Insufficient PTO balance',
+        })
+      }
+    }
+
+
+
     // CREATE LEAVE
-    const leave = await LeaveRequest.create({
+    const leave =
+      await LeaveRequest.create({
 
-      userId: req.user._id,
+        userId: req.user._id,
 
-      leaveType,
+        leaveType,
 
-      startDate,
+        startDate,
 
-      endDate,
+        endDate,
 
-      reason,
+        reason,
 
-      deductedDays,
+        deductedDays,
 
-      status:
-        leaveType === 'SICK'
-          ? 'APPROVED'
-          : 'PENDING',
-    })
+        status:
+          leaveType === 'SICK'
+            ? 'APPROVED'
+            : 'PENDING',
+      })
 
 
-    // AUDIT LOG
+
+    // CREATE AUDIT LOG
     await createAuditLog({
 
-      actorId: req.user._id,
+      actorId:
+        req.user._id,
 
-      actionType: 'LEAVE_APPLIED',
+      actionType:
+        'LEAVE_APPLIED',
 
       target:
         `${leave.leaveType} leave`,
@@ -95,6 +147,7 @@ const applyLeave = async (req, res) => {
       reason:
         leave.reason || '',
     })
+
 
 
     res.status(201).json(leave)
@@ -109,33 +162,37 @@ const applyLeave = async (req, res) => {
 
 
 
+
 // GET MY LEAVES
-const getMyLeaves = async (req, res) => {
+const getMyLeaves =
+  async (req, res) => {
 
-  try {
+    try {
 
-    const leaves =
-      await LeaveRequest.find({
+      const leaves =
+        await LeaveRequest.find({
 
-        userId: req.user._id
+          userId:
+            req.user._id,
 
-      }).sort({
-        createdAt: -1
+        }).sort({
+          createdAt: -1
+        })
+
+      res.json(leaves)
+
+    } catch (error) {
+
+      res.status(500).json({
+        message: error.message,
       })
-
-    res.json(leaves)
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: error.message,
-    })
-  }
+    }
 }
 
 
 
-// GET PENDING LEAVES (ADMIN)
+
+// GET PENDING LEAVES
 const getPendingLeaves =
   async (req, res) => {
 
@@ -151,7 +208,7 @@ const getPendingLeaves =
         .populate('userId')
 
         .sort({
-          createdAt: -1
+          createdAt: -1,
         })
 
       res.json(leaves)
@@ -163,6 +220,7 @@ const getPendingLeaves =
       })
     }
 }
+
 
 
 
@@ -180,11 +238,14 @@ const approveLeave =
       if (!leave) {
 
         return res.status(404).json({
-          message: 'Leave not found',
+          message:
+            'Leave not found',
         })
       }
 
-      leave.status = 'APPROVED'
+
+      leave.status =
+        'APPROVED'
 
       leave.approvedBy =
         req.user._id
@@ -192,16 +253,20 @@ const approveLeave =
       await leave.save()
 
 
-      // AUDIT LOG
+
+      // CREATE AUDIT LOG
       await createAuditLog({
 
-        actorId: req.user._id,
+        actorId:
+          req.user._id,
 
-        actionType: 'LEAVE_APPROVED',
+        actionType:
+          'LEAVE_APPROVED',
 
         target:
           leave._id.toString(),
       })
+
 
 
       res.json(leave)
@@ -213,6 +278,7 @@ const approveLeave =
       })
     }
 }
+
 
 
 
@@ -230,11 +296,14 @@ const rejectLeave =
       if (!leave) {
 
         return res.status(404).json({
-          message: 'Leave not found',
+          message:
+            'Leave not found',
         })
       }
 
-      leave.status = 'REJECTED'
+
+      leave.status =
+        'REJECTED'
 
       leave.rejectionReason =
         req.body.reason
@@ -245,12 +314,15 @@ const rejectLeave =
       await leave.save()
 
 
-      // AUDIT LOG
+
+      // CREATE AUDIT LOG
       await createAuditLog({
 
-        actorId: req.user._id,
+        actorId:
+          req.user._id,
 
-        actionType: 'LEAVE_REJECTED',
+        actionType:
+          'LEAVE_REJECTED',
 
         target:
           leave._id.toString(),
@@ -258,6 +330,7 @@ const rejectLeave =
         reason:
           leave.rejectionReason,
       })
+
 
 
       res.json(leave)
@@ -272,6 +345,31 @@ const rejectLeave =
 
 
 
+
+// GET LEAVE BALANCE
+const getBalance =
+  async (req, res) => {
+
+    try {
+
+      const balance =
+        await getLeaveBalance(
+          req.user._id
+        )
+
+      res.json(balance)
+
+    } catch (error) {
+
+      res.status(500).json({
+        message: error.message,
+      })
+    }
+}
+
+
+
+
 module.exports = {
 
   applyLeave,
@@ -283,4 +381,6 @@ module.exports = {
   approveLeave,
 
   rejectLeave,
+
+  getBalance,
 }

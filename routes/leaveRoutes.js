@@ -22,10 +22,11 @@ const {
 
   rejectLeave,
 
+  getBalance,
+
 } = require(
   '../controllers/leaveController'
 )
-
 
 
 // APPLY LEAVE
@@ -68,6 +69,13 @@ router.put(
   protect,
   adminOnly,
   rejectLeave
+)
+
+
+router.get(
+  '/balance',
+  protect,
+  getBalance
 )
 
 
