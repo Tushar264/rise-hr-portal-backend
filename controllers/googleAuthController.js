@@ -34,10 +34,8 @@ const googleLogin =
             process.env.GOOGLE_CLIENT_ID,
         })
 
-
       const payload =
         ticket.getPayload()
-
 
       const email =
         payload.email
@@ -46,47 +44,7 @@ const googleLogin =
         payload.name
 
 
-
-      // =================================
-      // DEVELOPMENT BYPASS
-      // REMOVE BEFORE FINAL SUBMISSION
-      // =================================
-
-      if (
-
-        email ===
-        'tusharbhakat39@gmail.com'
-
-      ) {
-
-        const user = {
-
-          name,
-
-          email,
-
-          role: 'ADMIN',
-        }
-
-
-        const jwtToken =
-          generateToken(email)
-
-
-        return res.json({
-
-          token: jwtToken,
-
-          user,
-        })
-      }
-
-
-
-      // =================================
-      // AIRTABLE AUTH
-      // =================================
-
+      // CHECK AIRTABLE TEAM TABLE
       const records =
         await base(
           process.env
@@ -103,7 +61,6 @@ const googleLogin =
         .firstPage()
 
 
-
       // USER NOT FOUND
       if (!records.length) {
 
@@ -115,25 +72,22 @@ const googleLogin =
       }
 
 
-
-      // USER FOUND
       const employee =
         records[0].fields
 
 
       const user = {
 
-        name:
-          employee.Name || name,
+        name,
 
-        email:
-          employee.Email || email,
+        email,
 
         role:
           employee.Role || 'MEMBER',
       }
 
 
+      // GENERATE JWT
       const jwtToken =
         generateToken(email)
 
@@ -147,8 +101,6 @@ const googleLogin =
 
     } catch (error) {
 
-      console.log(error)
-
       res.status(500).json({
 
         message:
@@ -156,8 +108,6 @@ const googleLogin =
       })
     }
 }
-
-
 
 module.exports = {
   googleLogin,
