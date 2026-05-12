@@ -13,7 +13,6 @@ const getLeaveBalance = require(
 )
 
 
-
 // APPLY LEAVE
 const applyLeave = async (req, res) => {
 
@@ -25,6 +24,49 @@ const applyLeave = async (req, res) => {
       endDate,
       reason,
     } = req.body
+
+
+    // PAST DATE VALIDATION
+    const today = new Date()
+
+    today.setHours(0, 0, 0, 0)
+
+    const leaveStartDate =
+      new Date(startDate)
+
+    leaveStartDate.setHours(
+      0,
+      0,
+      0,
+      0
+    )
+
+    const diffInTime =
+      today.getTime() -
+      leaveStartDate.getTime()
+
+    const diffInDays =
+      diffInTime /
+      (1000 * 60 * 60 * 24)
+
+
+    // ONLY ADMIN CAN APPLY
+    // FOR LEAVES OLDER THAN 7 DAYS
+    if (
+
+      req.user.role !== 'ADMIN' &&
+
+      diffInDays > 7
+
+    ) {
+
+      return res.status(400).json({
+
+        message:
+          'Cannot apply leave older than 7 days',
+      })
+    }
+
 
 
     // CHECK OVERLAPPING LEAVES
@@ -50,7 +92,8 @@ const applyLeave = async (req, res) => {
     if (overlappingLeave) {
 
       return res.status(400).json({
-        message: 'Overlapping leave exists',
+        message:
+          'Overlapping leave exists',
       })
     }
 
@@ -59,31 +102,38 @@ const applyLeave = async (req, res) => {
     // CALCULATE LEAVE DAYS
     const deductedDays =
       await calculateLeaveDays(
+
         startDate,
+
         endDate,
+
         leaveType === 'HALF_DAY'
       )
 
 
 
-    // CHECK LEAVE BALANCE
+    // GET LEAVE BALANCE
     const balance =
       await getLeaveBalance(
         req.user._id
       )
 
 
-    // WFH BALANCE CHECK
+
+    // CHECK WFH BALANCE
     if (
       leaveType === 'WFH'
     ) {
 
       if (
+
         balance.WFH.remaining <
         deductedDays
+
       ) {
 
         return res.status(400).json({
+
           message:
             'Insufficient WFH balance',
         })
@@ -91,15 +141,18 @@ const applyLeave = async (req, res) => {
     }
 
 
-    // PTO BALANCE CHECK
+    // CHECK PTO BALANCE
     else {
 
       if (
+
         balance.PTO.remaining <
         deductedDays
+
       ) {
 
         return res.status(400).json({
+
           message:
             'Insufficient PTO balance',
         })
@@ -135,8 +188,7 @@ const applyLeave = async (req, res) => {
     // CREATE AUDIT LOG
     await createAuditLog({
 
-      actorId:
-        req.user._id,
+      actorId: req.user._id,
 
       actionType:
         'LEAVE_APPLIED',
@@ -162,7 +214,6 @@ const applyLeave = async (req, res) => {
 
 
 
-
 // GET MY LEAVES
 const getMyLeaves =
   async (req, res) => {
@@ -173,7 +224,7 @@ const getMyLeaves =
         await LeaveRequest.find({
 
           userId:
-            req.user._id,
+            req.user._id
 
         }).sort({
           createdAt: -1
@@ -188,7 +239,6 @@ const getMyLeaves =
       })
     }
 }
-
 
 
 
@@ -207,10 +257,6 @@ const getPendingLeaves =
 
         .populate('userId')
 
-        .sort({
-          createdAt: -1,
-        })
-
       res.json(leaves)
 
     } catch (error) {
@@ -220,7 +266,6 @@ const getPendingLeaves =
       })
     }
 }
-
 
 
 
@@ -238,11 +283,11 @@ const approveLeave =
       if (!leave) {
 
         return res.status(404).json({
+
           message:
             'Leave not found',
         })
       }
-
 
       leave.status =
         'APPROVED'
@@ -254,7 +299,7 @@ const approveLeave =
 
 
 
-      // CREATE AUDIT LOG
+      // AUDIT LOG
       await createAuditLog({
 
         actorId:
@@ -281,7 +326,6 @@ const approveLeave =
 
 
 
-
 // REJECT LEAVE
 const rejectLeave =
   async (req, res) => {
@@ -296,11 +340,11 @@ const rejectLeave =
       if (!leave) {
 
         return res.status(404).json({
+
           message:
             'Leave not found',
         })
       }
-
 
       leave.status =
         'REJECTED'
@@ -315,7 +359,7 @@ const rejectLeave =
 
 
 
-      // CREATE AUDIT LOG
+      // AUDIT LOG
       await createAuditLog({
 
         actorId:
@@ -345,7 +389,6 @@ const rejectLeave =
 
 
 
-
 // GET LEAVE BALANCE
 const getBalance =
   async (req, res) => {
@@ -366,7 +409,6 @@ const getBalance =
       })
     }
 }
-
 
 
 
