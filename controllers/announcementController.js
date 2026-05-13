@@ -157,7 +157,7 @@ const reactToTarget =
       const existingReaction =
         await Reaction.findOne({
 
-          userId: req.user._id,
+          userId: req.user._id, 
 
           targetId,
 

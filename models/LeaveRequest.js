@@ -1,19 +1,31 @@
 const mongoose = require('mongoose')
 
-const leaveRequestSchema = new mongoose.Schema(
-  {
+const leaveRequestSchema =
+  new mongoose.Schema({
+
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      type: String,
       required: true,
     },
 
     leaveType: {
       type: String,
-      enum: ['PTO', 'HALF_DAY', 'SICK', 'PLANNED', 'WFH'],
+
+      enum: [
+
+        'PTO',
+
+        'HALF_DAY',
+
+        'SICK',
+
+        'PLANNED',
+
+        'WFH',
+      ],
+
       required: true,
     },
-
 
     startDate: {
       type: Date,
@@ -30,25 +42,30 @@ const leaveRequestSchema = new mongoose.Schema(
       required: true,
     },
 
-    reason: String,
+    reason: {
+      type: String,
+    },
+
+    rejectionReason: {
+      type: String,
+      default: '',
+    },
 
     status: {
       type: String,
-      enum: ['PENDING', 'APPROVED', 'REJECTED'],
+
+      enum: [
+        'PENDING',
+        'APPROVED',
+        'REJECTED',
+      ],
+
       default: 'PENDING',
     },
 
-    approvedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-    },
-
-    rejectionReason: String,
-  },
-  {
+  }, {
     timestamps: true,
-  }
-)
+  })
 
 module.exports = mongoose.model(
   'LeaveRequest',

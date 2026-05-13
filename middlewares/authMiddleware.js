@@ -11,6 +11,7 @@ const protect =
 
       let token
 
+      // CHECK TOKEN
       if (
 
         req.headers.authorization &&
@@ -26,68 +27,100 @@ const protect =
             ' '
           )[1]
 
-
-        const decoded =
-          jwt.verify(
-
-            token,
-
-            process.env.JWT_SECRET
-          )
+      }
 
 
-        // FETCH USER FROM AIRTABLE
-        const records =
-          await base('Team')
+      if (!token) {
 
-          .select({
-
-            filterByFormula:
-              `{Email}='${decoded.email}'`
-
-          })
-
-          .firstPage()
-
-
-        if (!records.length) {
-
-          return res.status(401).json({
-
-            message:
-              'Unauthorized',
-          })
-        }
-
-
-        const employee =
-          records[0].fields
-
-
-        req.user = {
-
-          email:
-            employee.Email,
-
-          name:
-            employee.Name,
-
-          role:
-            employee.Role,
-        }
-
-        next()
-
-      } else {
-
-        res.status(401).json({
+        return res.status(401).json({
 
           message:
             'No token found',
         })
       }
 
+
+      // VERIFY JWT
+      const decoded =
+        jwt.verify(
+
+          token,
+
+          process.env.JWT_SECRET
+        )
+
+
+      console.log(
+        'Decoded JWT:',
+        decoded
+      )
+
+
+      // FETCH USER FROM AIRTABLE
+      const records =
+        await base(
+          process.env
+            .AIRTABLE_TABLE_NAME
+        )
+
+        .select({
+
+          filterByFormula:
+            `{Email ID}='${decoded.email}'`
+
+        })
+
+        .firstPage()
+
+
+      console.log(
+        'Airtable Records:',
+        records
+      )
+
+
+      if (!records.length) {
+
+        return res.status(401).json({
+
+          message:
+            'Unauthorized',
+        })
+      }
+
+
+      const employee =
+        records[0].fields
+
+        console.log(employee)
+      // ATTACH USER
+      req.user = {
+
+        email:
+          employee['Email ID'],
+
+        name:
+          employee.Name,
+
+        role:
+          employee.Role,
+      }
+
+
+      console.log(
+        'Authenticated User:',
+        req.user
+      )
+
+
+      next()
+
     } catch (error) {
+
+      console.log(
+        'Auth Middleware Error:',
+        error
+      )
 
       res.status(401).json({
 

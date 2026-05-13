@@ -44,7 +44,7 @@ const googleLogin =
         payload.name
 
 
-      // CHECK AIRTABLE TEAM TABLE
+      // CHECK AIRTABLE
       const records =
         await base(
           process.env
@@ -54,7 +54,7 @@ const googleLogin =
         .select({
 
           filterByFormula:
-            `{Email}='${email}'`
+            `{Email ID}='${email}'`
 
         })
 
@@ -75,6 +75,7 @@ const googleLogin =
       const employee =
         records[0].fields
 
+        console.log(employee)
 
       const user = {
 
@@ -100,6 +101,8 @@ const googleLogin =
       })
 
     } catch (error) {
+
+      console.log(error)
 
       res.status(500).json({
 

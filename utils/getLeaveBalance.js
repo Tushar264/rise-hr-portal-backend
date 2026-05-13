@@ -3,12 +3,12 @@ const LeaveRequest = require(
 )
 
 const getLeaveBalance =
-  async (userId) => {
+  async (userEmail) => {
 
     const approvedLeaves =
       await LeaveRequest.find({
 
-        userId,
+        userId: userEmail,
 
         status: 'APPROVED',
       })
@@ -21,14 +21,17 @@ const getLeaveBalance =
 
     approvedLeaves.forEach((leave) => {
 
+      // WFH BALANCE
       if (
         leave.leaveType === 'WFH'
       ) {
 
         wfhUsed +=
           leave.deductedDays
+      }
 
-      } else {
+      // PTO BALANCE
+      else {
 
         ptoUsed +=
           leave.deductedDays
@@ -39,15 +42,21 @@ const getLeaveBalance =
     return {
 
       PTO: {
+
         total: 20,
+
         used: ptoUsed,
+
         remaining:
           20 - ptoUsed,
       },
 
       WFH: {
+
         total: 20,
+
         used: wfhUsed,
+
         remaining:
           20 - wfhUsed,
       },

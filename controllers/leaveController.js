@@ -1,215 +1,228 @@
-const LeaveRequest = require('../models/LeaveRequest')
-
-const calculateLeaveDays = require(
-  '../utils/calculateLeaveDays'
-)
-
-const createAuditLog = require(
-  '../utils/createAuditLog'
+const LeaveRequest = require(
+  '../models/LeaveRequest'
 )
 
 const getLeaveBalance = require(
   '../utils/getLeaveBalance'
 )
 
+const createAuditLog = require(
+  '../utils/createAuditLog'
+)
+
+
 
 // APPLY LEAVE
-const applyLeave = async (req, res) => {
+const applyLeave =
+  async (req, res) => {
 
-  try {
-
-    const {
-      leaveType,
-      startDate,
-      endDate,
-      reason,
-    } = req.body
-
-
-    // PAST DATE VALIDATION
-    const today = new Date()
-
-    today.setHours(0, 0, 0, 0)
-
-    const leaveStartDate =
-      new Date(startDate)
-
-    leaveStartDate.setHours(
-      0,
-      0,
-      0,
-      0
-    )
-
-    const diffInTime =
-      today.getTime() -
-      leaveStartDate.getTime()
-
-    const diffInDays =
-      diffInTime /
-      (1000 * 60 * 60 * 24)
-
-
-    // ONLY ADMIN CAN APPLY
-    // FOR LEAVES OLDER THAN 7 DAYS
-    if (
-
-      req.user.role !== 'ADMIN' &&
-
-      diffInDays > 7
-
-    ) {
-
-      return res.status(400).json({
-
-        message:
-          'Cannot apply leave older than 7 days',
-      })
-    }
-
-
-
-    // CHECK OVERLAPPING LEAVES
-    const overlappingLeave =
-      await LeaveRequest.findOne({
-
-        userId: req.user._id,
-
-        status: {
-          $in: ['PENDING', 'APPROVED']
-        },
-
-        startDate: {
-          $lte: endDate
-        },
-
-        endDate: {
-          $gte: startDate
-        }
-      })
-
-
-    if (overlappingLeave) {
-
-      return res.status(400).json({
-        message:
-          'Overlapping leave exists',
-      })
-    }
-
-
-
-    // CALCULATE LEAVE DAYS
-    const deductedDays =
-      await calculateLeaveDays(
-
-        startDate,
-
-        endDate,
-
-        leaveType === 'HALF_DAY'
-      )
-
-
-
-    // GET LEAVE BALANCE
-    const balance =
-      await getLeaveBalance(
-        req.user._id
-      )
-
-
-
-    // CHECK WFH BALANCE
-    if (
-      leaveType === 'WFH'
-    ) {
-
-      if (
-
-        balance.WFH.remaining <
-        deductedDays
-
-      ) {
-
-        return res.status(400).json({
-
-          message:
-            'Insufficient WFH balance',
-        })
-      }
-    }
-
-
-    // CHECK PTO BALANCE
-    else {
-
-      if (
-
-        balance.PTO.remaining <
-        deductedDays
-
-      ) {
-
-        return res.status(400).json({
-
-          message:
-            'Insufficient PTO balance',
-        })
-      }
-    }
-
-
-
-    // CREATE LEAVE
-    const leave =
-      await LeaveRequest.create({
-
-        userId: req.user._id,
-
+    try {
+      console.log(req.user)
+      
+      const {
         leaveType,
-
         startDate,
-
         endDate,
-
         reason,
+      } = req.body
 
-        deductedDays,
 
-        status:
-          leaveType === 'SICK'
-            ? 'APPROVED'
-            : 'PENDING',
+      // PAST DATE VALIDATION
+      const today = new Date()
+
+      today.setHours(0, 0, 0, 0)
+
+      const leaveStartDate =
+        new Date(startDate)
+
+      leaveStartDate.setHours(
+        0, 0, 0, 0
+      )
+
+      const diffInTime =
+        today.getTime() -
+        leaveStartDate.getTime()
+
+      const diffInDays =
+        diffInTime /
+        (1000 * 60 * 60 * 24)
+
+
+      if (
+
+        req.user.role !== 'ADMIN' &&
+
+        diffInDays > 7
+
+      ) {
+
+        return res.status(400).json({
+
+          message:
+            'Cannot apply leave older than 7 days',
+        })
+      }
+
+
+
+      // HALF DAY
+      let deductedDays = 1
+
+      if (
+        leaveType === 'HALF_DAY'
+      ) {
+
+        deductedDays = 0.5
+      }
+
+      else {
+
+        const start =
+          new Date(startDate)
+
+        const end =
+          new Date(endDate)
+
+        const timeDiff =
+          end.getTime() -
+          start.getTime()
+
+        deductedDays =
+          Math.floor(
+            timeDiff /
+            (1000 * 60 * 60 * 24)
+          ) + 1
+      }
+
+
+
+      // OVERLAP CHECK
+      const overlappingLeave =
+        await LeaveRequest.findOne({
+
+          userId:
+            req.user.email,
+
+          status: {
+            $in: [
+              'PENDING',
+              'APPROVED',
+            ],
+          },
+
+          startDate: {
+            $lte: endDate,
+          },
+
+          endDate: {
+            $gte: startDate,
+          },
+        })
+
+
+      if (overlappingLeave) {
+
+        return res.status(400).json({
+
+          message:
+            'Overlapping leave exists',
+        })
+      }
+
+
+
+      // BALANCE CHECK
+      const balance =
+        await getLeaveBalance(
+          req.user.email
+        )
+
+
+      // WFH BALANCE
+      if (
+        leaveType === 'WFH'
+      ) {
+
+        if (
+          balance.WFH.remaining <
+          deductedDays
+        ) {
+
+          return res.status(400).json({
+
+            message:
+              'Insufficient WFH balance',
+          })
+        }
+      }
+
+      // PTO BALANCE
+      else {
+
+        if (
+          balance.PTO.remaining <
+          deductedDays
+        ) {
+
+          return res.status(400).json({
+
+            message:
+              'Insufficient PTO balance',
+          })
+        }
+      }
+
+
+
+      // CREATE LEAVE
+      const leave =
+        await LeaveRequest.create({
+
+          userId:
+            req.user.email,
+
+          leaveType,
+
+          startDate,
+
+          endDate,
+
+          deductedDays,
+
+          reason,
+        })
+
+
+
+      // AUDIT LOG
+      await createAuditLog({
+
+        actorId:
+          req.user.email,
+
+        actionType:
+          'LEAVE_APPLIED',
+
+        target:
+          `${leave.leaveType} leave`,
+
+        reason:
+          leave.reason || '',
       })
 
 
+      res.status(201).json(leave)
 
-    // CREATE AUDIT LOG
-    await createAuditLog({
+    } catch (error) {
 
-      actorId: req.user._id,
+      console.log(error)
 
-      actionType:
-        'LEAVE_APPLIED',
+      res.status(500).json({
 
-      target:
-        `${leave.leaveType} leave`,
-
-      reason:
-        leave.reason || '',
-    })
-
-
-
-    res.status(201).json(leave)
-
-  } catch (error) {
-
-    res.status(500).json({
-      message: error.message,
-    })
-  }
+        message:
+          error.message,
+      })
+    }
 }
 
 
@@ -224,10 +237,7 @@ const getMyLeaves =
         await LeaveRequest.find({
 
           userId:
-            req.user._id
-
-        }).sort({
-          createdAt: -1
+            req.user.email,
         })
 
       res.json(leaves)
@@ -235,7 +245,9 @@ const getMyLeaves =
     } catch (error) {
 
       res.status(500).json({
-        message: error.message,
+
+        message:
+          error.message,
       })
     }
 }
@@ -252,17 +264,16 @@ const getPendingLeaves =
         await LeaveRequest.find({
 
           status: 'PENDING',
-
         })
-
-        .populate('userId')
 
       res.json(leaves)
 
     } catch (error) {
 
       res.status(500).json({
-        message: error.message,
+
+        message:
+          error.message,
       })
     }
 }
@@ -292,18 +303,14 @@ const approveLeave =
       leave.status =
         'APPROVED'
 
-      leave.approvedBy =
-        req.user._id
-
       await leave.save()
 
 
 
-      // AUDIT LOG
       await createAuditLog({
 
         actorId:
-          req.user._id,
+          req.user.email,
 
         actionType:
           'LEAVE_APPROVED',
@@ -313,13 +320,18 @@ const approveLeave =
       })
 
 
+      res.json({
 
-      res.json(leave)
+        message:
+          'Leave approved',
+      })
 
     } catch (error) {
 
       res.status(500).json({
-        message: error.message,
+
+        message:
+          error.message,
       })
     }
 }
@@ -352,18 +364,14 @@ const rejectLeave =
       leave.rejectionReason =
         req.body.reason
 
-      leave.approvedBy =
-        req.user._id
-
       await leave.save()
 
 
 
-      // AUDIT LOG
       await createAuditLog({
 
         actorId:
-          req.user._id,
+          req.user.email,
 
         actionType:
           'LEAVE_REJECTED',
@@ -376,20 +384,25 @@ const rejectLeave =
       })
 
 
+      res.json({
 
-      res.json(leave)
+        message:
+          'Leave rejected',
+      })
 
     } catch (error) {
 
       res.status(500).json({
-        message: error.message,
+
+        message:
+          error.message,
       })
     }
 }
 
 
 
-// GET LEAVE BALANCE
+// GET BALANCE
 const getBalance =
   async (req, res) => {
 
@@ -397,7 +410,7 @@ const getBalance =
 
       const balance =
         await getLeaveBalance(
-          req.user._id
+          req.user.email
         )
 
       res.json(balance)
@@ -405,7 +418,9 @@ const getBalance =
     } catch (error) {
 
       res.status(500).json({
-        message: error.message,
+
+        message:
+          error.message,
       })
     }
 }
